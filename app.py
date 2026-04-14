@@ -80,4 +80,11 @@ if user_input:
     insert_feedback(user_input)
 
     with st.chat_message("assistant"):
-        st.markdown(response)
+        # st.markdown(response)
+        import re
+
+        match = re.search(r"IMAGE_PATH::(.*)", response)
+
+        if match:
+            image_path = match.group(1).strip()
+            st.image(image_path, caption="Generated Image", use_container_width=True)

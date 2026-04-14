@@ -1,4 +1,4 @@
-from utils.db import create_table, insert_feedback
+from ..utils.db import create_table, insert_feedback
 
 def seed_data():
     create_table()

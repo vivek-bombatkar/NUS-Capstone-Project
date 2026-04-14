@@ -3,62 +3,121 @@ from typing import List
 # Import agents
 from agents import sentiment_agent, trend_agent, recommendation_agent
 from agents import sql_agent, rag_agent, image_agent
+from utils.formatter import format_response
+
+from utils.llm import generate_response
+import json
 
 
 def classify_query(query: str) -> List[str]:
-    query = query.lower()
-    agents = []
+    """
+    LLM-based query classification for agent routing
+    """
 
-    if any(word in query for word in ["document", "pdf", "report", "summary"]):
-        agents.append("rag")
+    prompt = f"""
+You are an AI router for a multi-agent system.
 
-    if any(word in query for word in ["data", "database", "records", "history"]):
-        agents.append("sql")
+Your job is to analyze the user query and decide which agents should be used.
 
-    if any(word in query for word in ["sentiment", "feeling", "happy", "unhappy", "bad", "good"]):
-        agents.append("sentiment")
+Available agents:
+- sentiment → analyze customer sentiment
+- trend → detect recurring issues and patterns
+- recommendation → suggest improvements
+- sql → query structured data
+- rag → retrieve knowledge from documents
+- image → generate visualizations
+- general → fallback if nothing matches
 
-    if any(word in query for word in ["trend", "pattern", "common", "issue", "problem"]):
-        agents.append("trend")
+Instructions:
+- Return ONLY a JSON list of agent names
+- Use multiple agents if needed
+- Be accurate and minimal (do not include unnecessary agents)
 
-    if any(word in query for word in ["recommend", "suggest", "improve", "solution"]):
-        agents.append("recommendation")
+Examples:
 
-    if any(word in query for word in ["image", "diagram", "visual", "chart"]):
-        agents.append("image")
+Query: "Why are customers unhappy?"
+Output: ["sentiment", "trend"]
 
-    if not agents:
-        agents.append("general")
+Query: "Show customer data"
+Output: ["sql"]
 
-    return agents
+Query: "Summarize this document"
+Output: ["rag"]
 
+Query: "Why are customers unhappy and what should I do?"
+Output: ["sentiment", "trend", "recommendation"]
+
+Query: "{query}"
+Output:
+"""
+
+    response = generate_response(prompt)
+
+    try:
+        agents = json.loads(response)
+
+        if not isinstance(agents, list):
+            raise ValueError("Invalid format")
+
+        return agents
+
+    except Exception:
+        # Fallback (VERY IMPORTANT for robustness)
+        return ["general"]
+    
 
 def handle_query(query: str, context: str) -> str:
     agents = classify_query(query)
 
     responses = []
 
-    for agent in agents:
+    sentiment_result = None
+    trend_result = None
 
-        if agent == "rag":
-            responses.append(rag_agent.run(query, context))
+    # ----------------------------
+    # Step 1: Sentiment
+    # ----------------------------
+    if "sentiment" in agents:
+        sentiment_result = sentiment_agent.run(query, context)
+        responses.append(sentiment_result)
 
-        elif agent == "sql":
-            responses.append(sql_agent.run(query, context))
+    # ----------------------------
+    # Step 2: Trend
+    # ----------------------------
+    if "trend" in agents:
+        trend_result = trend_agent.run(query, context)
+        responses.append(trend_result)
 
-        elif agent == "sentiment":
-            responses.append(sentiment_agent.run(query, context))
+    # ----------------------------
+    # Step 3: Recommendation (uses previous results)
+    # ----------------------------
+    if "recommendation" in agents:
+        combined_context = f"""
+        {context}
 
-        elif agent == "trend":
-            responses.append(trend_agent.run(query, context))
+        Sentiment Result:
+        {sentiment_result}
 
-        elif agent == "recommendation":
-            responses.append(recommendation_agent.run(query, context))
+        Trend Result:
+        {trend_result}
+        """
+        rec_result = recommendation_agent.run(query, combined_context)
+        responses.append(rec_result)
 
-        elif agent == "image":
-            responses.append(image_agent.run(query, context))
+    # ----------------------------
+    # Independent agents
+    # ----------------------------
+    if "sql" in agents:
+        responses.append(sql_agent.run(query, context))
 
-        elif agent == "general":
-            responses.append(f"🤖 General Response using context:\n{context}")
+    if "rag" in agents:
+        responses.append(rag_agent.run(query, context))
 
-    return "\n\n".join(responses)
+    if "image" in agents:
+        image_result = image_agent.run(query, context)
+        responses.append(image_result)
+
+    if "general" in agents:
+        responses.append(f"🤖 General Response:\n{context}")
+
+    return format_response(responses)
