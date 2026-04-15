@@ -2,7 +2,7 @@ from typing import List
 
 # Import agents
 from agents import sentiment_agent, trend_agent, recommendation_agent
-from agents import sql_agent, rag_agent, image_agent
+from agents import sql_agent, rag_agent, image_agent, weather_agent
 from utils.formatter import format_response
 
 from utils.llm import generate_response
@@ -20,6 +20,7 @@ You are an AI router for a multi-agent system.
 Your job is to analyze the user query and decide which agents should be used.
 
 Available agents:
+- weather → provide weather information
 - sentiment → analyze customer sentiment
 - trend → detect recurring issues and patterns
 - recommendation → suggest improvements
@@ -117,6 +118,9 @@ def handle_query(query: str, context: str) -> str:
         image_result = image_agent.run(query, context)
         responses.append(image_result)
 
+    if "weather" in agents:
+        responses.append(weather_agent.run(query, context))
+        
     if "general" in agents:
         responses.append(f"🤖 General Response:\n{context}")
 

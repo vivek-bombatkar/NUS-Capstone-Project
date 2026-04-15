@@ -74,10 +74,11 @@ if user_input:
     response = handle_query(user_input, context)
 
     # Add assistant response
-    add_message("user", user_input)
+    # add_message("user", user_input)
+    add_message("assistant", response)
 
     # Store in DB
-    insert_feedback(user_input)
+    # insert_feedback(user_input)
 
     with st.chat_message("assistant"):
         # st.markdown(response)
@@ -88,3 +89,5 @@ if user_input:
         if match:
             image_path = match.group(1).strip()
             st.image(image_path, caption="Generated Image", use_container_width=True)
+        else:
+            st.markdown(response)

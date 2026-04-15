@@ -1,0 +1,29 @@
+Packaging and Returns Review - Mid-Year Assessment
+
+Packaging Quality Issues:
+23% of customers reported receiving items with damaged packaging.
+Fragile items in the home goods category had the highest damage rate at 34%.
+The current packaging standard was last updated 18 months ago and does not account for
+the increase in long-distance shipments introduced this year.
+
+Root Causes Identified:
+1. Single-layer boxing used for items that require double-walled corrugated packaging.
+2. Insufficient void fill material for irregularly shaped products.
+3. No fragile labelling applied consistently across the warehouse.
+
+Returns Data:
+Total returns in H1: 1,240 units
+Returns due to damage in transit: 610 units (49% of all returns)
+Returns due to wrong item received: 290 units (23% of all returns)
+Returns due to product not as described: 340 units (27% of all returns)
+
+Financial Impact:
+Estimated cost of returns processing: SGD 18,600 in H1
+Estimated cost of replacement shipments: SGD 11,200 in H1
+Total estimated loss from packaging-related issues: SGD 29,800 in H1
+
+Recommendations:
+1. Upgrade packaging standards for fragile and long-distance shipments immediately.
+2. Introduce a packaging audit process at the warehouse level.
+3. Apply fragile stickers and handling instructions to all relevant SKUs.
+4. Review the returns portal UX to reduce customer friction and processing time.

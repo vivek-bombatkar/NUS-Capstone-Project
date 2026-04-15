@@ -1,0 +1,28 @@
+Customer Support Analysis Report - Q1 and Q2
+
+Executive Summary:
+Support ticket volume increased by 31% over the first half of the year.
+The majority of tickets were related to delivery status inquiries and return requests.
+
+Response Time Metrics:
+Average first response time: 18 hours (target: 4 hours)
+Average resolution time: 52 hours (target: 24 hours)
+Ticket backlog at end of Q2: 340 unresolved tickets
+
+Top Ticket Categories:
+1. Delivery status inquiry - 42% of all tickets
+2. Return and refund requests - 28% of all tickets
+3. Product defect complaints - 18% of all tickets
+4. Billing and payment issues - 8% of all tickets
+5. General inquiries - 4% of all tickets
+
+Agent Performance:
+The support team is currently understaffed by an estimated 3 full-time agents.
+Peak ticket volume occurs between 6pm and 10pm on weekdays.
+Customer satisfaction scores for resolved tickets average 3.1 out of 5.
+
+Recommendations:
+1. Hire 2-3 additional support agents for evening shifts.
+2. Introduce an automated chatbot to handle delivery status inquiries.
+3. Create a self-service returns portal to reduce ticket volume by an estimated 25%.
+4. Set up escalation rules to prioritise tickets older than 24 hours.
