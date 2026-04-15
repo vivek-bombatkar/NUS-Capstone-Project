@@ -7,5 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.4.4",
     "openai>=2.31.0",
+    "scikit-learn>=1.8.0",
     "streamlit>=1.56.0",
 ]

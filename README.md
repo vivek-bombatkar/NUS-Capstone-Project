@@ -85,9 +85,9 @@ uv sync
 Create a `.env` file in the project root (never commit this file — it is listed in `.gitignore`):
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-HF_API_KEY=your_huggingface_api_key_here
-OPENWEATHER_API_KEY=your_openweathermap_api_key_here
+export GROQ_API_KEY=your_groq_api_key_here
+export HF_API_KEY=your_huggingface_api_key_here
+export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
 ```
 
 API keys can be obtained from:
@@ -98,7 +98,7 @@ API keys can be obtained from:
 ### 4. Launch the app
 
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 The app will open in your browser at `http://localhost:8501`.

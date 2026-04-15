@@ -5,37 +5,13 @@ from utils.llm import generate_response
 
 # Static document store (acts as knowledge base)
 # Each entry is a (source_name, content) tuple so we can cite sources later
-DOCUMENTS = [
-    (
-        "Product Feedback Report Q1",
-        """
-        Many customers reported delays in shipping due to logistics issues.
-        Delivery timelines exceeded expectations in 40% of cases.
-        """
-    ),
-    (
-        "Customer Complaint Analysis",
-        """
-        Product defects were observed in multiple categories.
-        Customers reported damaged items and poor quality.
-        """
-    ),
-    (
-        "Customer Support Report",
-        """
-        Support response time is slow.
-        Average resolution time exceeds 48 hours.
-        """
-    ),
-    (
-        "Packaging Review",
-        """
-        Packaging quality is inconsistent.
-        Items often arrive damaged due to poor packaging.
-        """
-    ),
-]
-
+import os
+DOCUMENTS = []
+for filename in os.listdir("data/documents"):
+    if filename.endswith(".txt"):
+        with open(f"data/documents/{filename}") as f:
+            DOCUMENTS.append((filename, f.read()))
+            
 
 def chunk_documents(documents: list, chunk_size: int = 2) -> list:
     """
