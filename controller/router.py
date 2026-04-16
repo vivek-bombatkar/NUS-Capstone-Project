@@ -63,14 +63,23 @@ Output:
         return agents
 
     except Exception:
-        # Fallback (VERY IMPORTANT for robustness)
         return ["general"]
-    
 
-def handle_query(query: str, context: str) -> str:
+
+def handle_query(query: str, context: str):
+    """
+    Route query to the appropriate agents and return results.
+
+    Return type is intentionally flexible:
+    - Returns a dict  when RAG is the sole agent (so the UI can render
+      the pipeline steps visually)
+    - Returns a str   in all other cases (plain text or formatted
+      multi-agent response)
+    """
     agents = classify_query(query)
 
     responses = []
+    rag_result = None
 
     sentiment_result = None
     trend_result = None
@@ -112,16 +121,40 @@ def handle_query(query: str, context: str) -> str:
         responses.append(sql_agent.run(query, context))
 
     if "rag" in agents:
-        responses.append(rag_agent.run(query, context))
+        # Keep RAG result separate — it's a dict, not a string
+        rag_result = rag_agent.run(query, context)
 
     if "image" in agents:
-        image_result = image_agent.run(query, context)
-        responses.append(image_result)
+        responses.append(image_agent.run(query, context))
 
     if "weather" in agents:
         responses.append(weather_agent.run(query, context))
-        
+
     if "general" in agents:
         responses.append(f"🤖 General Response:\n{context}")
 
+    # ----------------------------
+    # Return strategy
+    # ----------------------------
+
+    # Case 1: RAG is the only agent invoked → return the dict directly
+    # so app.py can render the full pipeline visualisation
+    if rag_result is not None and not responses:
+        return rag_result
+
+    # Case 2: RAG ran alongside other agents → extract the plain-text
+    # answer from the dict and add it to the responses list as a string,
+    # then format everything together normally
+    if rag_result is not None and responses:
+        if rag_result.get("error"):
+            responses.append(f"📄 RAG: {rag_result['error']}")
+        else:
+            rag_text = (
+                f"📄 Document-Based Answer (RAG):\n\n"
+                f"{rag_result.get('answer', '')}\n\n"
+                f"📎 Sources: {rag_result.get('sources_cited', '')}"
+            )
+            responses.append(rag_text)
+
+    # Case 3: No RAG involved → format and return as normal
     return format_response(responses)
