@@ -103,6 +103,63 @@ uv run streamlit run app.py
 
 The app will open in your browser at `http://localhost:8501`.
 
+
+---
+
+## Gradio App (Alternative UI)
+
+A lightweight Gradio frontend is available at `gradio_app.py` for quick sharing and Hugging Face Spaces deployment.
+
+### Run locally with uv
+
+```bash
+uv run python gradio_app.py
+```
+
+### What it includes
+
+- Reuses existing `controller.router.handle_query` orchestration
+- Supports multi-turn context (last 5 turns)
+- Normalizes mixed outputs for chat display:
+  - plain text
+  - RAG structured payloads
+  - `IMAGE_PATH::...` markers
+
+---
+
+## Deploy to Hugging Face Spaces (Gradio)
+
+### 1) Create Space
+
+- Go to Hugging Face → **New Space**
+- Choose **SDK: Gradio**
+- Set visibility/public as needed
+
+### 2) Push code
+
+Push this repository (or deployment branch) to the Space repository.
+
+### 3) Configure secrets
+
+In Space settings → **Variables and secrets**, add:
+
+- `GROQ_API_KEY`
+- `HF_API_KEY`
+- `OPENWEATHER_API_KEY`
+
+### 4) Launch
+
+Hugging Face will auto-build and run `gradio_app.py` from your repo.
+
+### Optional: create share link locally
+
+For local demos, you can temporarily use:
+
+```python
+# in gradio_app.py
+gr.ChatInterface(...).launch(share=True)
+```
+
 ---
 
 ## APIs and Libraries
