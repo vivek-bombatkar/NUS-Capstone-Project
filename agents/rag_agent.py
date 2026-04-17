@@ -7,21 +7,42 @@ import os
 # Config
 # ---------------------------------------------------------------------------
 DOCUMENTS_DIR = "data/documents"
-SIMILARITY_THRESHOLD = 0.05   # T1-2: minimum score to consider a chunk relevant
-TOP_N = 2                      # number of chunks to retrieve
+SIMILARITY_THRESHOLD = 0.05
+TOP_N = 2
 
 
 # ---------------------------------------------------------------------------
 # Document loading
 # ---------------------------------------------------------------------------
-def load_documents(directory: str = DOCUMENTS_DIR) -> list:
-    """Load all .txt files from the documents directory."""
-    documents = []
-    for filename in os.listdir(directory):
-        if filename.endswith(".txt"):
-            with open(os.path.join(directory, filename)) as f:
-                documents.append((filename, f.read()))
-    return documents
+def load_documents(
+    directory: str = DOCUMENTS_DIR,
+    uploaded_docs: list = None
+) -> list:
+    """
+    Load documents from two sources and merge them:
+    1. Static .txt files from data/documents/ (always loaded as baseline)
+    2. Uploaded documents passed in from the UI session (optional)
+
+    uploaded_docs: list of (source_name, content) tuples parsed from
+                   Streamlit uploaded files via utils/document_parser.py
+
+    Returns a deduplicated list of (source_name, content) tuples.
+    Uploaded docs are prepended so they rank higher in retrieval when
+    query terms match both sources equally.
+    """
+    static_docs = []
+    if os.path.exists(directory):
+        for filename in os.listdir(directory):
+            if filename.endswith(".txt"):
+                filepath = os.path.join(directory, filename)
+                with open(filepath, encoding="utf-8") as f:
+                    static_docs.append((filename, f.read()))
+
+    if uploaded_docs:
+        # Uploaded docs go first so they are preferentially retrieved
+        return uploaded_docs + static_docs
+
+    return static_docs
 
 
 # ---------------------------------------------------------------------------
@@ -29,25 +50,25 @@ def load_documents(directory: str = DOCUMENTS_DIR) -> list:
 # ---------------------------------------------------------------------------
 def chunk_documents(documents: list, chunk_size: int = 2) -> list:
     """
-    Split each document into smaller chunks (by sentence groups).
+    Split each document into smaller chunks (by line groups).
     Returns a list of (source_name, chunk_text) tuples.
     """
     chunks = []
     for source_name, content in documents:
         sentences = [s.strip() for s in content.strip().split("\n") if s.strip()]
         for i in range(0, len(sentences), chunk_size):
-            chunk_text = " ".join(sentences[i : i + chunk_size])
+            chunk_text = " ".join(sentences[i: i + chunk_size])
             chunks.append((source_name, chunk_text))
     return chunks
 
 
 # ---------------------------------------------------------------------------
-# T1-4: Query expansion — rewrite query into multiple phrasings
+# Query expansion
 # ---------------------------------------------------------------------------
 def expand_query(query: str) -> list:
     """
     Ask the LLM to generate 2 alternative phrasings of the query.
-    Returns a list of query strings: [original] + [expansions].
+    Returns [original] + [alternatives].
     """
     prompt = f"""You are a search query assistant.
 
@@ -62,30 +83,28 @@ Return ONLY the 2 alternatives as a plain numbered list, no explanation:
 2.
 """
     response = generate_response(prompt)
-
-    # Parse the numbered list — extract lines starting with 1. or 2.
     alternatives = []
     for line in response.strip().split("\n"):
         line = line.strip()
         if line.startswith("1.") or line.startswith("2."):
             alternatives.append(line[2:].strip())
 
-    # Always include the original; fall back gracefully if parsing fails
     return [query] + alternatives if alternatives else [query]
 
 
 # ---------------------------------------------------------------------------
-# T1-2 + T1-4: Retrieval with query expansion and similarity threshold
+# Retrieval with query expansion + similarity threshold
 # ---------------------------------------------------------------------------
-def retrieve_relevant_docs(query: str, top_n: int = TOP_N) -> list:
+def retrieve_relevant_docs(
+    query: str,
+    top_n: int = TOP_N,
+    uploaded_docs: list = None
+) -> list:
     """
-    T1-4: Expand query into multiple phrasings, retrieve chunks for each,
-    take the union of results.
-    T1-2: Filter out chunks below the similarity threshold.
-    Returns a list of (source_name, chunk_text, score) tuples,
-    or an empty list if nothing clears the threshold.
+    Expand query → TF-IDF retrieval → similarity threshold filter.
+    Returns list of (source_name, chunk_text, score) tuples.
     """
-    documents = load_documents()
+    documents = load_documents(uploaded_docs=uploaded_docs)
     chunks = chunk_documents(documents)
 
     if not chunks:
@@ -94,18 +113,13 @@ def retrieve_relevant_docs(query: str, top_n: int = TOP_N) -> list:
     chunk_texts = [text for _, text in chunks]
     chunk_sources = [source for source, _ in chunks]
 
-    # T1-4: expand the query
     query_variants = expand_query(query)
 
-    # Collect (index, best_score) across all query variants
-    best_scores = {}   # chunk_index -> highest score seen across variants
-
     vectorizer = TfidfVectorizer()
-    # Fit on all chunks + all query variants together for a consistent vocabulary
     vectorizer.fit(chunk_texts + query_variants)
-
     chunk_vectors = vectorizer.transform(chunk_texts)
 
+    best_scores = {}
     for variant in query_variants:
         query_vector = vectorizer.transform([variant])
         scores = cosine_similarity(query_vector, chunk_vectors).flatten()
@@ -113,10 +127,8 @@ def retrieve_relevant_docs(query: str, top_n: int = TOP_N) -> list:
             if idx not in best_scores or score > best_scores[idx]:
                 best_scores[idx] = score
 
-    # Sort by best score descending, take top_n
     ranked = sorted(best_scores.items(), key=lambda x: x[1], reverse=True)[:top_n]
 
-    # T1-2: apply similarity threshold — discard chunks below the minimum
     retrieved = [
         (chunk_sources[idx], chunk_texts[idx], round(score, 4))
         for idx, score in ranked
@@ -127,13 +139,12 @@ def retrieve_relevant_docs(query: str, top_n: int = TOP_N) -> list:
 
 
 # ---------------------------------------------------------------------------
-# T1-3: Re-ranking — LLM validates whether retrieved chunks are actually relevant
+# Re-ranking — LLM validates chunk relevance
 # ---------------------------------------------------------------------------
 def rerank_chunks(query: str, retrieved: list) -> list:
     """
-    T1-3: Ask the LLM to validate each retrieved chunk for relevance.
-    Filters out chunks the LLM considers irrelevant.
-    Returns the filtered list of (source_name, chunk_text, score) tuples.
+    Ask the LLM to validate each chunk for relevance.
+    Returns only the chunks confirmed as relevant.
     """
     if not retrieved:
         return []
@@ -147,12 +158,10 @@ Query: "{query}"
 Retrieved chunk:
 \"\"\"{chunk_text}\"\"\"
 
-Is this chunk relevant to answering the query? 
+Is this chunk relevant to answering the query?
 Reply with ONLY one word: Yes or No.
 """
         verdict = generate_response(prompt).strip().lower()
-
-        # Accept the chunk only if the LLM says yes
         if verdict.startswith("y"):
             validated.append((source_name, chunk_text, score))
 
@@ -162,23 +171,20 @@ Reply with ONLY one word: Yes or No.
 # ---------------------------------------------------------------------------
 # Main RAG pipeline
 # ---------------------------------------------------------------------------
-def run(query: str, context: str) -> dict:
+def run(query: str, context: str, uploaded_docs: list = None) -> dict:
     """
-    RAG Agent — returns a structured dict so the UI can render
-    each pipeline step independently.
+    Full RAG pipeline:
+      Step 1a — Query expansion
+      Step 1b — TF-IDF retrieval across static + uploaded docs
+      Step 1c — Similarity threshold filter
+      Step 2  — LLM re-ranking validation
+      Step 3  — Answer generation from validated chunks
 
-    Returns:
-    {
-        "type": "rag",
-        "query_variants": [...],
-        "retrieved": [(source, chunk, score), ...],
-        "validated": [(source, chunk, score), ...],
-        "answer": "...",
-        "sources_cited": "...",
-        "error": None  # or an error message string
-    }
+    uploaded_docs: optional list of (source_name, content) tuples
+                   injected from the Streamlit UI session.
+
+    Returns a structured dict so app.py can render each step visually.
     """
-
     result = {
         "type": "rag",
         "query_variants": [],
@@ -186,25 +192,27 @@ def run(query: str, context: str) -> dict:
         "validated": [],
         "answer": "",
         "sources_cited": "",
+        "used_uploaded_docs": bool(uploaded_docs),
+        "uploaded_doc_names": [name for name, _ in uploaded_docs] if uploaded_docs else [],
         "error": None,
     }
 
-    # --- Step 1a: Query expansion ---
+    # Step 1a: Query expansion
     query_variants = expand_query(query)
     result["query_variants"] = query_variants
 
-    # --- Step 1b+c: Retrieve with threshold ---
-    retrieved = retrieve_relevant_docs(query, top_n=TOP_N)
+    # Step 1b+c: Retrieve with threshold
+    retrieved = retrieve_relevant_docs(query, top_n=TOP_N, uploaded_docs=uploaded_docs)
     result["retrieved"] = retrieved
 
     if not retrieved:
         result["error"] = (
-            "No relevant documents found. "
-            "Try asking about delivery, support response times, or packaging."
+            "No relevant content found. "
+            "Try uploading a document or asking about delivery, support, or packaging."
         )
         return result
 
-    # --- Step 2: Re-rank ---
+    # Step 2: Re-rank
     validated = rerank_chunks(query, retrieved)
     result["validated"] = validated
 
@@ -215,7 +223,7 @@ def run(query: str, context: str) -> dict:
         )
         return result
 
-    # --- Step 3: Generate ---
+    # Step 3: Generate
     retrieved_text = ""
     for source_name, chunk_text, score in validated:
         retrieved_text += f"[Source: {source_name} | Score: {score}]\n{chunk_text}\n\n"

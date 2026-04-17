@@ -120,12 +120,21 @@ uv run python gradio_app.py
 
 - Reuses existing `controller.router.handle_query` orchestration
 - Supports multi-turn context (last 5 turns)
+- Supports document upload + contextual Q&A (RAG over uploaded files)
 - Normalizes mixed outputs for chat display:
   - plain text
   - RAG structured payloads
   - `IMAGE_PATH::...` markers
 
 ---
+
+
+### Document-querying (Upload + RAG)
+
+In Gradio, upload one or more documents via the file input and ask questions about them.
+The app retrieves relevant chunks from uploaded files and answers using only that context.
+
+**Tip:** Use `.txt` files for best results in this phase.
 
 ## Deploy to Hugging Face Spaces (Gradio)
 
