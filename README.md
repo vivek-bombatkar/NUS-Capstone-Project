@@ -1,5 +1,15 @@
 # Multi-Agent AI Assistant with RAG, LLM Routing & Image Generation
 
+
+## Submission Context
+
+This README is prepared as part of the final capstone submission for the **NUS Generative AI Programme**. It documents the design, implementation, and evaluation of a fully integrated multi-agent AI system developed to meet the assignment requirements.
+
+The complete source code for this project is available at the following Git repository:
+
+🔗 https://github.com/vivek-bombatkar/NUS-Capstone-Project
+
+
 ## Overview
 
 This project implements a fully integrated multi-agent AI system that combines conversational AI,
