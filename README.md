@@ -42,6 +42,17 @@ faster response to customer needs.
 
 ---
 
+## Application UI Screenshots
+
+![Image 1](images/image_1.png)
+![Image 1](images/image_2.png)
+![Image 1](images/image_3.png)
+![Image 1](images/image_4.png)
+![Image 1](images/image_5.png)
+![Image 1](images/image_6.png)
+![Image 1](images/image_7.png)
+
+---
 ## Repository Structure
 
 ```
