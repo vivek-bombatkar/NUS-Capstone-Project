@@ -195,7 +195,7 @@ The following diagram illustrates the end-to-end flow of the system and how diff
 ```mermaid
 graph TD
     A[User] --> B[Streamlit UI]
-    B --> C[Controller Router (LLM)]
+    B --> C[Controller Router LLM]
     C --> D1[Sentiment Agent]
     C --> D2[Trend Agent]
     C --> D3[Recommendation Agent]
@@ -222,11 +222,109 @@ graph TD
     M --> C
 ```
 
-### High-Level Flow
 
+### RAG Architecture
+
+```mermaid
+graph TD
+
+    A[User Query] --> B[Controller Router]
+    B --> C[RAG Agent]
+
+    C --> D[Document Store]
+    D --> E[LLM Selects Relevant Documents]
+
+    E --> F[LLM Generates Answer]
+    F --> G[Formatted Response]
+    G --> H[UI Output]
 ```
-User Input → Streamlit UI → Controller (LLM Router) → Agent(s) → Formatter → UI Output
+
+
+### Multi-Agent Orchestration Flow
+
+```mermaid
+graph TD
+
+    A[User Query] --> B[Controller Router]
+
+    B --> C1[Sentiment Agent]
+    B --> C2[Trend Agent]
+    B --> C3[SQL Agent]
+    B --> C4[RAG Agent]
+    B --> C5[Image Agent]
+    B --> C6[Weather Agent]
+
+    C1 --> D[Shared Context]
+    C2 --> D
+
+    D --> C7[Recommendation Agent]
+
+    C3 --> E[Formatter]
+    C4 --> E
+    C5 --> E
+    C6 --> E
+    C7 --> E
+
+    E --> F[Final Response]
 ```
+
+
+---
+
+## Integration Process
+
+This section describes how individual components were developed and integrated into a single end-to-end system.
+
+### Step 1: Independent Agent Development
+- Each agent (Sentiment, Trend, Recommendation, SQL, RAG, Image, Weather) was implemented and tested independently
+- Focus was on ensuring each agent could handle its specific task reliably
+
+### Step 2: Unit Testing of Agents
+- A dedicated test script (`test_llm.py`) was used to validate:
+  - LLM connectivity
+  - API responses
+  - SQL query correctness
+  - RAG response quality
+- This ensured all agents worked in isolation before integration
+
+### Step 3: Controller (Router) Implementation
+- A central controller (`router.py`) was introduced
+- LLM-based routing logic was implemented to:
+  - Classify user intent
+  - Select appropriate agent(s)
+- Output format constraints were enforced for consistent agent invocation
+
+### Step 4: Multi-Agent Orchestration
+- Agents were connected through the controller
+- Dependency flow implemented:
+  - Sentiment → Trend → Recommendation
+- Outputs from upstream agents were passed as context to downstream agents
+
+### Step 5: UI Integration (Streamlit)
+- All agent interactions were connected to a single Streamlit interface (`app.py`)
+- Controller became the single entry point for all queries
+- No manual switching between components
+
+### Step 6: Memory Integration
+- Session-based memory (last 5 interactions) was added
+- Memory is passed to the controller for contextual query understanding
+
+### Step 7: End-to-End Testing
+- Full system tested using real user queries across:
+  - Multi-turn conversations
+  - RAG queries
+  - SQL queries
+  - Image generation
+  - Weather queries
+- Ensured seamless flow across all components
+
+### Step 8: Error Handling and Stability Improvements
+- Added `try/except` blocks across agents
+- Implemented fallback responses for API failures
+- Added logging for debugging integration issues
+
+---
+
 
 ### Core Architectural Layers
 
@@ -373,10 +471,27 @@ Query → LLM reads document list → LLM selects relevant docs → LLM generate
 3. Prompt is sent to Hugging Face Inference API (`stabilityai/stable-diffusion-2`)
 4. Generated image is saved locally as `output.png` and rendered in the UI
 
-Sample prompt transformation:
+### Prompt Experimentation
 
-- User query: `"Generate a dashboard showing customer satisfaction trends"`
-- Engineered prompt: `"A clean modern data dashboard with bar charts and line graphs showing customer satisfaction scores over 12 months, blue and white colour scheme, professional UI, high resolution"`
+To improve image generation quality, multiple prompt variations were tested and compared.
+
+#### 1. Basic Prompt (Low Detail)
+- **Input:** "Generate a dashboard showing customer satisfaction trends"
+- **Output:** Generic chart with minimal structure and poor visual clarity
+
+#### 2. Enhanced Prompt (Moderate Detail)
+- **Input:** "A dashboard with bar charts showing customer satisfaction trends over time"
+- **Output:** Improved layout with visible charts, but still lacking professional styling
+
+#### 3. Engineered Prompt (High Detail)
+- **Input:** 
+  "A clean modern data dashboard with bar charts and line graphs showing customer satisfaction scores over 12 months, blue and white colour scheme, professional UI, high resolution"
+- **Output:** High-quality, structured, and visually appealing dashboard with clear data representation
+
+#### Key Learnings
+- More descriptive prompts significantly improve output quality
+- Including visual style (e.g., colour scheme, layout) enhances realism
+- Adding context (e.g., time range, data type) leads to more meaningful images
 
 ---
 
