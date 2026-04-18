@@ -188,6 +188,40 @@ All dependencies are pinned in `pyproject.toml` and locked in `uv.lock`.
 
 ## Technical Architecture
 
+## Architecture Diagram
+
+The following diagram illustrates the end-to-end flow of the system and how different components interact:
+
+```mermaid
+graph TD
+    A[User] --> B[Streamlit UI]
+    B --> C[Controller Router (LLM)]
+    C --> D1[Sentiment Agent]
+    C --> D2[Trend Agent]
+    C --> D3[Recommendation Agent]
+    C --> D4[SQL Agent]
+    C --> D5[RAG Agent]
+    C --> D6[Image Agent]
+    C --> D7[Weather Agent]
+
+    D1 --> E[Formatter]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    D5 --> E
+    D6 --> E
+    D7 --> E
+
+    E --> F[UI Response]
+
+    subgraph Memory
+        M[Last 5 Conversations]
+    end
+
+    B --> M
+    M --> C
+```
+
 ### High-Level Flow
 
 ```
@@ -251,6 +285,45 @@ Each agent is independently executable and coordinated through the controller.
 - Aggregates outputs from multiple agents
 - Structures response into labelled sections: Sentiment Analysis, Trends, Recommendations, Data Insights, Knowledge Insights, Visualisation
 
+
+
+## Key Implementation Decisions
+
+This section outlines the important architectural and design decisions made while building the system, along with the reasoning behind them.
+
+### 1. LLM-Based Routing vs Rule-Based Routing
+- **Decision:** Use LLM (Groq LLaMA 3) for query classification instead of keyword-based rules
+- **Reason:** Enables dynamic understanding of user intent and supports complex, multi-intent queries without hardcoding rules
+- **Impact:** Improved flexibility and scalability of the controller
+
+
+### 3. SQLite for Structured Data
+- **Decision:** Use SQLite for storing customer feedback data
+- **Reason:** Lightweight, no external setup required, and sufficient for prototype-scale structured querying
+- **Impact:** Easy portability and fast local testing
+
+### 4. Groq API for LLM Inference
+- **Decision:** Use Groq-hosted LLaMA 3 model (`llama3-8b-8192`)
+- **Reason:** Faster inference compared to traditional APIs and cost-effective for experimentation
+- **Impact:** Improved responsiveness in routing, RAG, and generation tasks
+
+### 5. Streamlit as Primary UI
+- **Decision:** Use Streamlit for the main application interface
+- **Reason:** Rapid prototyping, built-in support for chat interfaces, and easy deployment
+- **Impact:** Faster development and interactive debugging
+
+### 6. Modular Multi-Agent Design
+- **Decision:** Implement agents as independent modules under `/agents`
+- **Reason:** Separation of concerns and easier testing of individual components
+- **Impact:** Improved maintainability and scalability
+
+### 7. Sliding Window Memory (Last 5 Turns)
+- **Decision:** Maintain only recent conversation history
+- **Reason:** Prevent token overflow and keep context relevant
+- **Impact:** Efficient memory usage while preserving conversational continuity
+
+
+
 ---
 
 ## Multi-Agent Coordination
@@ -281,24 +354,13 @@ Model used: `llama3-8b-8192` (configurable)
 
 ## RAG Design
 
-### Constraint
-
-Traditional RAG approaches using FAISS, ChromaDB, or `sentence-transformers` were not feasible
-due to dependency conflicts on macOS Intel (incompatible native binaries for `torch` and `faiss`).
-
-### Solution: LLM-Based Retrieval
+### LLM-Based Retrieval
 
 ```
 Query → LLM reads document list → LLM selects relevant docs → LLM generates grounded answer
 ```
 
-**Trade-off acknowledged:** This approach does not perform vector similarity search; the LLM acts
-as both retriever and generator. For a production system, a proper embedding-based retrieval step
-(e.g., using `sklearn` TF-IDF + cosine similarity, which has no heavy native dependencies) would
-be preferable. This is documented as a future enhancement.
-
 **What this approach guarantees:**
-- No dependency on external vector databases
 - Simpler architecture with no additional services
 - Answers are grounded in the provided document store (not hallucinated)
 
